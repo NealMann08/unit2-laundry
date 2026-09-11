@@ -1,0 +1,64 @@
+.board {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 24px 14px 40px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #16202a;
+}
+
+.building {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5f7183;
+}
+
+h1 {
+  margin: 0 0 24px;
+  font-size: 32px;
+  letter-spacing: -1px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.note {
+  margin: 2px 0 10px;
+  font-size: 12px;
+  color: #5f7183;
+}
+
+.tile {
+  background: #ffffff;
+  border: 1px solid #d6e0e7;
+  border-radius: 9px;
+  padding: 18px 4px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5f7183;
+}
+
+.washer-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  margin-bottom: 26px;
+}
+
+.dryer-stack {
+  display: grid;
+  gap: 5px;
+  padding: 6px;
+  background: #dfe7ec;
+  border: 1px solid #d6e0e7;
+  border-radius: 11px;
+}
+
+.dryer-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
