@@ -1,7 +1,82 @@
+/* Board and header */
+
+.board {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 24px 14px 40px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #16202a;
+}
+
+.building {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5f7183;
+}
+
+h1 {
+  margin: 0 0 24px;
+  font-size: 32px;
+  letter-spacing: -1px;
+}
+
+.updated {
+  margin: -18px 0 24px;
+  font-size: 12px;
+  color: #5f7183;
+}
+
+h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.note {
+  margin: 2px 0 10px;
+  font-size: 12px;
+  color: #5f7183;
+}
+
+/* Room layout */
+
+.washer-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  margin-bottom: 26px;
+}
+
+.dryer-stack {
+  display: grid;
+  gap: 5px;
+  padding: 6px;
+  background: #dfe7ec;
+  border: 1px solid #d6e0e7;
+  border-radius: 11px;
+}
+
+.dryer-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+/* Tile */
+
 .tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #d6e0e7;
+  border-radius: 9px;
+  padding: 12px 3px 10px;
+  text-align: center;
   font: inherit;
   cursor: pointer;
-  width: 100%;
 }
 
 .tile:focus-visible {
@@ -9,9 +84,40 @@
   outline-offset: 2px;
 }
 
+.tile-id {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5f7183;
+}
+
+.tile-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--state-color);
+  background: var(--state-color);
+}
+
+.tile-label {
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--state-color);
+  line-height: 1.2;
+}
+
+.tile-time {
+  font-size: 10px;
+  color: #5f7183;
+  font-variant-numeric: tabular-nums;
+  min-height: 12px;
+}
+
+/* Detail sheet */
+
 .scrim {
   position: fixed;
   inset: 0;
+  z-index: 10;
   background: rgba(22, 32, 42, 0.35);
   display: flex;
   align-items: flex-end;
