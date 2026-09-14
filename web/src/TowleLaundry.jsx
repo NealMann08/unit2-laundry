@@ -1,6 +1,5 @@
-import "./TowleLaundry.css";
-
 import { useState, useEffect } from "react";
+
 import "./TowleLaundry.css";
 
 const now = () => Date.now();
@@ -36,18 +35,79 @@ const MACHINES = [
   { id: "D3", kind: "dryer", tier: "bottom", state: "free", since: now() - mins(45) },
 ];
 
-function Tile({ machine, t }) {
+function Tile({ machine, t, onOpen }) {
   const { label, color } = STATES[machine.state];
   const showTime = machine.state === "running" || machine.state === "stopped";
 
   return (
-    <div className="tile" style={{ "--state-color": color }}>
+    <button
+      className="tile"
+      style={{ "--state-color": color }}
+      onClick={() => onOpen(machine.id)}
+    >
       <span className="tile-id">{machine.id}</span>
       <span className="tile-dot" />
       <span className="tile-label">{label}</span>
       <span className="tile-time">
         {showTime ? elapsed(t - machine.since) : ""}
       </span>
+    </button>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="sheet-row">
+      <span className="sheet-key">{label}</span>
+      <span className="sheet-value">{value}</span>
+    </div>
+  );
+}
+
+function Sheet({ machine, t, onClose }) {
+  if (!machine) return null;
+
+  const { label, color } = STATES[machine.state];
+  const kind = machine.kind === "washer" ? "Washer" : "Dryer";
+  const tier = machine.tier === "top" ? "upper" : "lower";
+
+  return (
+    <div className="scrim" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-head" style={{ "--state-color": color }}>
+          <span className="sheet-dot" />
+          <div>
+            <p className="sheet-title">
+              {kind} {machine.id.slice(1)}
+              {machine.tier && <span className="sheet-tier"> · {tier}</span>}
+            </p>
+            <p className="sheet-state">{label}</p>
+          </div>
+        </div>
+
+        {machine.state === "stopped" && (
+          <p className="sheet-caveat">
+            The cycle ended {elapsed(t - machine.since)} ago. The sensor can't
+            tell whether it's been emptied.
+          </p>
+        )}
+
+        <div className="sheet-rows">
+          {machine.state === "running" && (
+            <Row label="Running for" value={elapsed(t - machine.since)} />
+          )}
+          {machine.state === "stopped" && (
+            <Row label="Stopped" value={`${elapsed(t - machine.since)} ago`} />
+          )}
+          {machine.state === "free" && (
+            <Row label="Idle for" value={elapsed(t - machine.since)} />
+          )}
+        </div>
+
+        <button className="sheet-close" onClick={onClose}>
+          Close
+        </button>
+      </div>
     </div>
   );
 }
@@ -70,6 +130,8 @@ export default function TowleLaundry() {
     second: "2-digit",
   });
 
+  const [openId, setOpenId] = useState(null);
+  const openMachine = MACHINES.find((m) => m.id === openId);
   return (
     <div className="board">
       <header>
@@ -83,7 +145,7 @@ export default function TowleLaundry() {
         <p className="note">Right wall as you walk in</p>
         <div className="washer-row">
           {washers.map((m) => (
-            <Tile key={m.id} machine={m} t={t} />
+            <Tile key={m.id} machine={m} t={t} onOpen={setOpenId} />
           ))}
         </div>
       </section>
@@ -94,16 +156,18 @@ export default function TowleLaundry() {
         <div className="dryer-stack">
           <div className="dryer-row">
             {dryersTop.map((m) => (
-              <Tile key={m.id} machine={m} t={t} />
+              <Tile key={m.id} machine={m} t={t} onOpen={setOpenId} />
             ))}
           </div>
           <div className="dryer-row">
             {dryersBottom.map((m) => (
-              <Tile key={m.id} machine={m} t={t} />
+              <Tile key={m.id} machine={m} t={t} onOpen={setOpenId} />
             ))}
           </div>
         </div>
       </section>
+      <Sheet machine={openMachine} t={t} onClose={() => setOpenId(null)} />
+      
     </div>
   );
 }
