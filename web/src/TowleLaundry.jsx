@@ -1,13 +1,8 @@
 import { useState, useEffect } from "react";
 
+import { isOutOfOrder, liveReports } from "./faults";
+import { subscribe, reportFault, snapshot as currentSnapshot } from "./sensors";
 import "./TowleLaundry.css";
-
-const now = () => Date.now();
-const mins = (n) => n * 60000;
-
-const DAY = 24 * 60 * 60 * 1000;
-const REPORT_TTL = 7 * DAY;
-const FAULT_WINDOW = DAY;
 
 function elapsed(ms) {
   const m = Math.floor(ms / 60000);
@@ -30,45 +25,12 @@ function reporterId() {
   return id;
 }
 
-function liveReports(machine, t) {
-  return machine.reports.filter((r) => t - r.at < REPORT_TTL);
-}
-
-// Two distinct residents reporting within 24 hours of each other marks a
-// machine out of order. The pair has to be close in time to count as
-// corroboration; the reports then stay valid until they expire at 7 days.
-function isOutOfOrder(machine, t) {
-  const live = liveReports(machine, t);
-  return live.some((a) =>
-    live.some((b) => a.by !== b.by && Math.abs(a.at - b.at) < FAULT_WINDOW)
-  );
-}
-
 const STATES = {
   free:    { label: "Free",         color: "#0fa37f" },
   running: { label: "Running",      color: "#de7f16" },
   stopped: { label: "Stopped",      color: "#6558e0" },
   broken:  { label: "Out of order", color: "#9aa7b2" },
 };
-
-const INITIAL_MACHINES = [
-  { id: "W1", kind: "washer", state: "running", since: now() - mins(22), reports: [] },
-  { id: "W2", kind: "washer", state: "free", since: now() - mins(140), reports: [] },
-  { id: "W3", kind: "washer", state: "running", since: now() - mins(4), reports: [] },
-  { id: "W4", kind: "washer", state: "free", since: now() - mins(4000),
-    reports: [
-      { by: "r-8f2a41", at: now() - mins(2900) },
-      { by: "r-c41b09", at: now() - mins(2760) },
-    ] },
-  { id: "W5", kind: "washer", state: "stopped", since: now() - mins(6), reports: [] },
-  { id: "W6", kind: "washer", state: "free", since: now() - mins(300), reports: [] },
-  { id: "D4", kind: "dryer", tier: "top", state: "running", since: now() - mins(31), reports: [] },
-  { id: "D5", kind: "dryer", tier: "top", state: "stopped", since: now() - mins(14), reports: [] },
-  { id: "D6", kind: "dryer", tier: "top", state: "free", since: now() - mins(200), reports: [] },
-  { id: "D1", kind: "dryer", tier: "bottom", state: "running", since: now() - mins(12), reports: [] },
-  { id: "D2", kind: "dryer", tier: "bottom", state: "free", since: now() - mins(88), reports: [] },
-  { id: "D3", kind: "dryer", tier: "bottom", state: "free", since: now() - mins(45), reports: [] },
-];
 
 function Tile({ machine, t, onOpen }) {
   const faulted = isOutOfOrder(machine, t);
@@ -177,28 +139,19 @@ function Sheet({ machine, t, me, onClose, onReport }) {
 }
 
 export default function TowleLaundry() {
-  const [t, setT] = useState(now());
-  const [machines, setMachines] = useState(INITIAL_MACHINES);
+  // One snapshot object rather than separate time and machine state, because
+  // they always arrive together and must never be rendered out of step.
+  // Passing the function itself, not calling it — React runs a lazy
+  // initializer once, on the first render only.
+  const [snapshot, setSnapshot] = useState(currentSnapshot);
   const [me] = useState(reporterId);
   const [openId, setOpenId] = useState(null);
 
-  useEffect(() => {
-    const id = setInterval(() => setT(now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  // subscribe() returns its own unsubscribe function, which is exactly the
+  // cleanup shape useEffect wants.
+  useEffect(() => subscribe(setSnapshot), []);
 
-  function reportFault(id) {
-    const at = now();
-    setMachines((prev) =>
-      prev.map((m) => {
-        if (m.id !== id) return m;
-        // Prune expired reports on write so the array can't grow forever.
-        const live = m.reports.filter((r) => at - r.at < REPORT_TTL);
-        if (live.some((r) => r.by === me)) return { ...m, reports: live };
-        return { ...m, reports: [...live, { by: me, at }] };
-      })
-    );
-  }
+  const { at: t, machines } = snapshot;
 
   const washers = machines.filter((m) => m.kind === "washer");
   const dryersTop = machines.filter((m) => m.tier === "top");
@@ -252,7 +205,7 @@ export default function TowleLaundry() {
         t={t}
         me={me}
         onClose={() => setOpenId(null)}
-        onReport={reportFault}
+        onReport={(id) => reportFault(id, me)}
       />
     </div>
   );

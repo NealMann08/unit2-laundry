@@ -86,15 +86,29 @@ Built so far:
 2. Machine states with colored tiles (STATES lookup, CSS custom properties)
 3. Live clock via useState + useEffect, elapsed time per machine
 4. Detail sheet on tap, state lifted to parent, openId stored not the object
-5. Fault reporting. MACHINES is now React state. Each machine carries a
-   `reports` array; out-of-order is computed by `isOutOfOrder`, not stored.
+5. Fault reporting. Each machine carries a `reports` array; out-of-order is
+   computed by `isOutOfOrder`, not stored.
+6. Simulated sensor traffic. `sensors.js` owns all machine data and pushes
+   snapshots; the component subscribes and renders whatever arrives.
 
 Remaining phases:
 
-6. Simulated sensor traffic so states change on their own
 7. "No signal" state and a header summary count that excludes it
 8. Watch a machine and get notified when it finishes
-9. API client layer, then swap the simulator for a real server
+9. Swap the simulator's internals for fetch against a real server
+
+### Frontend files
+
+- `TowleLaundry.jsx` — all rendering. Owns no machine data.
+- `sensors.js` — the data source. Currently a simulator; phase 9 replaces
+  its internals with `fetch` and keeps `subscribe` / `snapshot` /
+  `reportFault` identical.
+- `faults.js` — fault rules, shared by the UI and the data source.
+
+Time in the app comes from the snapshot (`snapshot.at`), never from
+`Date.now()` in a component. The simulator runs a fast virtual clock, and
+the real server will stamp times too, since an ESP32 with no RTC can't be
+trusted to know what time it is.
 
 ## How fault state is modelled
 
