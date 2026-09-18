@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from "react";
 
 import { liveReports } from "./faults";
 import { displayState, isStale, countFree, countUnknown } from "./status";
-import { subscribe, reportFault, snapshot as currentSnapshot } from "./sensors";
+import {
+  subscribe,
+  reportFault,
+  snapshot as currentSnapshot,
+  usingSimulator,
+} from "./source";
 import {
   loadWatched,
   saveWatched,
@@ -294,7 +299,7 @@ export default function TowleLaundry() {
     });
   }, []);
 
-  const { at: t, machines } = snapshot;
+  const { at: t, machines, online } = snapshot;
 
   // Persisted separately rather than inside the updater above — StrictMode
   // runs updaters twice, and a writer that runs twice is a writer with a bug.
@@ -333,8 +338,18 @@ export default function TowleLaundry() {
       <header>
         <p className="building">Unit 2 Towle</p>
         <h1>Laundry</h1>
-        <p className="updated">Updated {clock}</p>
+        <p className="updated">
+          Updated {clock}
+          {usingSimulator && <span className="badge">simulated</span>}
+        </p>
       </header>
+
+      {!online && (
+        <p className="offline">
+          Can't reach the server. Everything below is the last update that got
+          through, and will age into "no signal" shortly.
+        </p>
+      )}
 
       <Alert ids={alerts} onDismiss={() => setAlerts([])} />
 

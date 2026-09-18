@@ -90,8 +90,8 @@ const listeners = new Set();
 let timer = null;
 
 function emit() {
-  const snapshot = { at: vnow, machines };
-  for (const fn of listeners) fn(snapshot);
+  const snap = snapshot();
+  for (const fn of listeners) fn(snap);
 }
 
 function tick() {
@@ -109,8 +109,10 @@ function tick() {
 
 // The current snapshot, synchronously. Lets the UI render real data on its
 // very first paint instead of flashing an empty room for one frame.
+// `online` exists to match the shape api.js returns — a simulator running in
+// this tab can't be unreachable.
 export function snapshot() {
-  return { at: vnow, machines };
+  return { at: vnow, machines, online: true };
 }
 
 export function subscribe(fn) {

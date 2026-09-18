@@ -51,6 +51,7 @@ This is the most important section. Follow it.
 ## Structure
 
 - `docs/design.md` — design document, requirements, decisions and reasoning
+- `docs/api.md` — wire contract between sensor, server, and browser
 - `web/` — React frontend
 - `firmware/sensor/` — ESP32 code (empty)
 - `analysis/` — signal analysis notebooks (empty)
@@ -94,17 +95,17 @@ Built so far:
 8. Watch a running machine. In-page banner plus a Notification if permitted.
    Only works while the page is open — real background delivery needs Web
    Push, which needs the server.
-
-Remaining phases:
-
-9. Swap the simulator's internals for fetch against a real server
+9. API client and the wire contract in `docs/api.md`. The frontend is
+   feature-complete against fake data; what's left is a server to talk to.
 
 ### Frontend files
 
 - `TowleLaundry.jsx` — all rendering. Owns no machine data.
-- `sensors.js` — the data source. Currently a simulator; phase 9 replaces
-  its internals with `fetch` and keeps `subscribe` / `snapshot` /
-  `reportFault` identical.
+- `source.js` — picks the data source. `VITE_API_URL` set means `api.js`,
+  unset means the simulator, so `npm run dev` needs no server.
+- `sensors.js` — the simulator. Owns a fast virtual clock.
+- `api.js` — the real client. Polls every 10s, emits every 1s, interpolating
+  the server clock in between.
 - `faults.js` — fault rules, shared by the UI and the data source.
 - `status.js` — what a machine is *displayed* as. `displayState` ranks
   out-of-order over no-signal over the sensed state, and everything that
