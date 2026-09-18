@@ -15,16 +15,17 @@ both a working system and genuinely understanding how it works.
 
 This is the most important section. Follow it.
 
-- **Work in small increments.** One logical change at a time, roughly
-  30-80 lines. Never dump a large amount of code at once.
-- **I type the code, not you.** Give me the code to type, explain what each
-  part does and why, then wait. Don't write directly to source files unless
-  I explicitly ask. Explaining the reasoning is the point of this project.
-- **Stop after each increment** so I can run it, understand it, and commit.
-  Don't chain multiple stages together.
-- **Tell me what to test.** After each increment, give me one or two things
-  to try that would reveal whether I actually understood it, including
-  things that break on purpose.
+- **You write the code.** Edit the source files directly. I review and
+  commit. I don't type it in myself.
+- **Work in phases.** One coherent feature per phase. Finish the phase
+  across however many files it touches, then stop.
+- **Stop after each phase** so I can run it and commit. Don't chain
+  multiple phases together.
+- **Explain the reasoning anyway.** After each phase, say what changed and
+  why it's built that way. Understanding how the system works is still a
+  goal of this project even though I'm not typing the code.
+- **Tell me what to test.** One or two things to try, including something
+  that breaks on purpose to show what a rule is actually doing.
 - **Explain tradeoffs, not just solutions.** When there's more than one way,
   say what the options are and why one wins.
 - **Push back on me.** If I ask for something that's a bad idea or bigger
@@ -32,12 +33,13 @@ This is the most important section. Follow it.
 
 ## Git
 
-- I write and run my own commits. Don't commit for me unless I ask.
+- I run my own commits. Don't commit or push for me unless I ask.
+- After each phase, give me the exact git commands to stage, commit, and
+  push, ready to paste.
 - No attribution trailers. No "Generated with Claude Code", no
   "Co-Authored-By", no session links in commit messages.
 - Commit messages: imperative mood, describe what the change does.
   "Add fault reporting" not "Added fault reporting" and not "wip".
-- Suggest a commit message after each increment. I'll run it.
 
 ## Stack
 
@@ -78,23 +80,31 @@ Read `docs/design.md` for the full reasoning. Summary:
 
 ## Where the frontend is
 
-Built in stages so far:
+Built so far:
 
 1. Static room layout with twelve tiles
 2. Machine states with colored tiles (STATES lookup, CSS custom properties)
 3. Live clock via useState + useEffect, elapsed time per machine
 4. Detail sheet on tap, state lifted to parent, openId stored not the object
+5. Fault reporting. MACHINES is now React state. Each machine carries a
+   `reports` array; out-of-order is computed by `isOutOfOrder`, not stored.
 
-Remaining:
+Remaining phases:
 
-5. Fault reporting — MACHINES must become React state, not a module constant
-6. Watch a machine and get notified when it finishes
-7. Simulated sensor traffic so states change on their own
-8. Header summary count that excludes machines with no signal
-9. Replace fake data with a real API
+6. Simulated sensor traffic so states change on their own
+7. "No signal" state and a header summary count that excludes it
+8. Watch a machine and get notified when it finishes
+9. API client layer, then swap the simulator for a real server
 
-## Current problem
+## How fault state is modelled
 
-The layout is rendering wrong. The CSS was built up across stages and rules
-may be missing or duplicated. Check `web/src/TowleLaundry.css` against what
-`TowleLaundry.jsx` actually uses before changing any JSX.
+"Out of order" is not a machine state. The sensed states are idle and
+running; stopped is derived. A fault is a separate layer computed from
+resident reports, because a machine can be flagged *and* running at the
+same time — which is what lets the sensor auto-clear a fault by observing a
+full cycle.
+
+Two distinct reporters within 24 hours *of each other* trips the fault. The
+24 hours is how close two reports must be to corroborate; the 7-day expiry
+is how long that corroboration stays valid. A fault does not clear itself
+overnight just because nobody reported again.
