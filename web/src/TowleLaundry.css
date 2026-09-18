@@ -195,6 +195,27 @@ h2 {
   font-variant-numeric: tabular-nums;
 }
 
+.sheet-report {
+  width: 100%;
+  padding: 11px;
+  margin-bottom: 8px;
+  border: 1px solid #e0c3b6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #b4451f;
+  font: inherit;
+  font-weight: 650;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.sheet-report:disabled {
+  border-color: #d6e0e7;
+  background: #f1f5f7;
+  color: #5f7183;
+  cursor: default;
+}
+
 .sheet-close {
   width: 100%;
   padding: 12px;

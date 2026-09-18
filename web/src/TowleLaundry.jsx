@@ -5,12 +5,43 @@ import "./TowleLaundry.css";
 const now = () => Date.now();
 const mins = (n) => n * 60000;
 
+const DAY = 24 * 60 * 60 * 1000;
+const REPORT_TTL = 7 * DAY;
+const FAULT_WINDOW = DAY;
+
 function elapsed(ms) {
   const m = Math.floor(ms / 60000);
   if (m < 1) return "just now";
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60);
   return `${h} hr ${m % 60} min`;
+}
+
+// A stable anonymous id for this browser, so the two-distinct-reporters rule
+// has something to compare. Deliberately not crypto.randomUUID(), which is
+// undefined outside a secure context — this has to work over plain http when
+// testing from a phone on the dorm wifi.
+function reporterId() {
+  let id = localStorage.getItem("towle-reporter");
+  if (!id) {
+    id = `r-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem("towle-reporter", id);
+  }
+  return id;
+}
+
+function liveReports(machine, t) {
+  return machine.reports.filter((r) => t - r.at < REPORT_TTL);
+}
+
+// Two distinct residents reporting within 24 hours of each other marks a
+// machine out of order. The pair has to be close in time to count as
+// corroboration; the reports then stay valid until they expire at 7 days.
+function isOutOfOrder(machine, t) {
+  const live = liveReports(machine, t);
+  return live.some((a) =>
+    live.some((b) => a.by !== b.by && Math.abs(a.at - b.at) < FAULT_WINDOW)
+  );
 }
 
 const STATES = {
@@ -20,24 +51,30 @@ const STATES = {
   broken:  { label: "Out of order", color: "#9aa7b2" },
 };
 
-const MACHINES = [
-  { id: "W1", kind: "washer", state: "running", since: now() - mins(22) },
-  { id: "W2", kind: "washer", state: "free", since: now() - mins(140) },
-  { id: "W3", kind: "washer", state: "running", since: now() - mins(4) },
-  { id: "W4", kind: "washer", state: "broken", since: now() - mins(4000) },
-  { id: "W5", kind: "washer", state: "stopped", since: now() - mins(6) },
-  { id: "W6", kind: "washer", state: "free", since: now() - mins(300) },
-  { id: "D4", kind: "dryer", tier: "top", state: "running", since: now() - mins(31) },
-  { id: "D5", kind: "dryer", tier: "top", state: "stopped", since: now() - mins(14) },
-  { id: "D6", kind: "dryer", tier: "top", state: "free", since: now() - mins(200) },
-  { id: "D1", kind: "dryer", tier: "bottom", state: "running", since: now() - mins(12) },
-  { id: "D2", kind: "dryer", tier: "bottom", state: "free", since: now() - mins(88) },
-  { id: "D3", kind: "dryer", tier: "bottom", state: "free", since: now() - mins(45) },
+const INITIAL_MACHINES = [
+  { id: "W1", kind: "washer", state: "running", since: now() - mins(22), reports: [] },
+  { id: "W2", kind: "washer", state: "free", since: now() - mins(140), reports: [] },
+  { id: "W3", kind: "washer", state: "running", since: now() - mins(4), reports: [] },
+  { id: "W4", kind: "washer", state: "free", since: now() - mins(4000),
+    reports: [
+      { by: "r-8f2a41", at: now() - mins(2900) },
+      { by: "r-c41b09", at: now() - mins(2760) },
+    ] },
+  { id: "W5", kind: "washer", state: "stopped", since: now() - mins(6), reports: [] },
+  { id: "W6", kind: "washer", state: "free", since: now() - mins(300), reports: [] },
+  { id: "D4", kind: "dryer", tier: "top", state: "running", since: now() - mins(31), reports: [] },
+  { id: "D5", kind: "dryer", tier: "top", state: "stopped", since: now() - mins(14), reports: [] },
+  { id: "D6", kind: "dryer", tier: "top", state: "free", since: now() - mins(200), reports: [] },
+  { id: "D1", kind: "dryer", tier: "bottom", state: "running", since: now() - mins(12), reports: [] },
+  { id: "D2", kind: "dryer", tier: "bottom", state: "free", since: now() - mins(88), reports: [] },
+  { id: "D3", kind: "dryer", tier: "bottom", state: "free", since: now() - mins(45), reports: [] },
 ];
 
 function Tile({ machine, t, onOpen }) {
-  const { label, color } = STATES[machine.state];
-  const showTime = machine.state === "running" || machine.state === "stopped";
+  const faulted = isOutOfOrder(machine, t);
+  const { label, color } = faulted ? STATES.broken : STATES[machine.state];
+  const showTime =
+    !faulted && (machine.state === "running" || machine.state === "stopped");
 
   return (
     <button
@@ -64,12 +101,17 @@ function Row({ label, value }) {
   );
 }
 
-function Sheet({ machine, t, onClose }) {
+function Sheet({ machine, t, me, onClose, onReport }) {
   if (!machine) return null;
 
-  const { label, color } = STATES[machine.state];
+  const faulted = isOutOfOrder(machine, t);
+  const { label, color } = faulted ? STATES.broken : STATES[machine.state];
   const kind = machine.kind === "washer" ? "Washer" : "Dryer";
   const tier = machine.tier === "top" ? "upper" : "lower";
+
+  const live = liveReports(machine, t);
+  const reporters = new Set(live.map((r) => r.by)).size;
+  const mine = live.some((r) => r.by === me);
 
   return (
     <div className="scrim" onClick={onClose}>
@@ -102,7 +144,29 @@ function Sheet({ machine, t, onClose }) {
           {machine.state === "free" && (
             <Row label="Idle for" value={elapsed(t - machine.since)} />
           )}
+          {reporters > 0 && (
+            <Row
+              label="Problem reports"
+              value={reporters === 1 ? "1 resident" : `${reporters} residents`}
+            />
+          )}
         </div>
+
+        {reporters > 0 && (
+          <p className="sheet-caveat">
+            {faulted
+              ? "Marked out of order. This clears if the machine runs a full cycle, or when the reports expire after 7 days."
+              : "One report isn't enough. Another resident reporting within 24 hours marks it out of order."}
+          </p>
+        )}
+
+        <button
+          className="sheet-report"
+          onClick={() => onReport(machine.id)}
+          disabled={mine}
+        >
+          {mine ? "You reported this" : "Report a problem"}
+        </button>
 
         <button className="sheet-close" onClick={onClose}>
           Close
@@ -114,15 +178,31 @@ function Sheet({ machine, t, onClose }) {
 
 export default function TowleLaundry() {
   const [t, setT] = useState(now());
+  const [machines, setMachines] = useState(INITIAL_MACHINES);
+  const [me] = useState(reporterId);
+  const [openId, setOpenId] = useState(null);
 
   useEffect(() => {
     const id = setInterval(() => setT(now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const washers = MACHINES.filter((m) => m.kind === "washer");
-  const dryersTop = MACHINES.filter((m) => m.tier === "top");
-  const dryersBottom = MACHINES.filter((m) => m.tier === "bottom");
+  function reportFault(id) {
+    const at = now();
+    setMachines((prev) =>
+      prev.map((m) => {
+        if (m.id !== id) return m;
+        // Prune expired reports on write so the array can't grow forever.
+        const live = m.reports.filter((r) => at - r.at < REPORT_TTL);
+        if (live.some((r) => r.by === me)) return { ...m, reports: live };
+        return { ...m, reports: [...live, { by: me, at }] };
+      })
+    );
+  }
+
+  const washers = machines.filter((m) => m.kind === "washer");
+  const dryersTop = machines.filter((m) => m.tier === "top");
+  const dryersBottom = machines.filter((m) => m.tier === "bottom");
 
   const clock = new Date(t).toLocaleTimeString([], {
     hour: "numeric",
@@ -130,8 +210,8 @@ export default function TowleLaundry() {
     second: "2-digit",
   });
 
-  const [openId, setOpenId] = useState(null);
-  const openMachine = MACHINES.find((m) => m.id === openId);
+  const openMachine = machines.find((m) => m.id === openId);
+
   return (
     <div className="board">
       <header>
@@ -166,8 +246,14 @@ export default function TowleLaundry() {
           </div>
         </div>
       </section>
-      <Sheet machine={openMachine} t={t} onClose={() => setOpenId(null)} />
-      
+
+      <Sheet
+        machine={openMachine}
+        t={t}
+        me={me}
+        onClose={() => setOpenId(null)}
+        onReport={reportFault}
+      />
     </div>
   );
 }

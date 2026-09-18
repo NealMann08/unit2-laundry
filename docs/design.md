@@ -133,10 +133,23 @@ a single number, in which case v1 needs no machine learning at all.
 ## 7. Fault reporting
 
 A machine is marked out of order when two distinct residents report it
-within 24 hours. Single reports are insufficient because one person could
-flag every machine to keep the room free. Reports expire after 7 days. The
-sensor auto-clears a fault if a flagged machine runs a complete normal-length
-cycle.
+within 24 hours **of each other**. Single reports are insufficient because
+one person could flag every machine to keep the room free.
+
+The two numbers do different jobs and are easy to confuse:
+
+- **24 hours** is how close together two reports must land to count as
+  corroborating each other.
+- **7 days** is how long a report stays valid once filed.
+
+So the fault latches. It does not clear itself after 24 hours merely
+because nobody reported again; it clears when the underlying reports expire
+at 7 days, or earlier if the sensor observes a complete normal-length cycle
+on a flagged machine.
+
+A fault is an overlay, not a state. A machine can be flagged and running at
+the same time — that has to be representable, otherwise the auto-clear rule
+above can never fire.
 
 ## 8. Milestones
 
