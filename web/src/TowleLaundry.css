@@ -38,6 +38,38 @@ h2 {
   color: #5f7183;
 }
 
+/* Finished-load alert */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #16202a;
+  color: #ffffff;
+}
+
+.alert-text {
+  flex: 1;
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.alert-close {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* Summary */
 
 .summary-block {
@@ -117,6 +149,12 @@ h2 {
   text-align: center;
   font: inherit;
   cursor: pointer;
+}
+
+/* Inset rather than a border, so marking a tile as watched doesn't change
+   its size and reflow the grid. */
+.tile--watched {
+  box-shadow: inset 0 0 0 2px #16202a;
 }
 
 .tile:focus-visible {
@@ -245,6 +283,25 @@ h2 {
 .sheet-value {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.sheet-watch {
+  width: 100%;
+  padding: 11px;
+  margin-bottom: 8px;
+  border: 1px solid #16202a;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #16202a;
+  font: inherit;
+  font-weight: 650;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.sheet-watch--on {
+  background: #16202a;
+  color: #ffffff;
 }
 
 .sheet-report {
