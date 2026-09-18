@@ -90,10 +90,10 @@ Built so far:
    computed by `isOutOfOrder`, not stored.
 6. Simulated sensor traffic. `sensors.js` owns all machine data and pushes
    snapshots; the component subscribes and renders whatever arrives.
+7. "No signal" for stale sensors, and a summary count that excludes it.
 
 Remaining phases:
 
-7. "No signal" state and a header summary count that excludes it
 8. Watch a machine and get notified when it finishes
 9. Swap the simulator's internals for fetch against a real server
 
@@ -104,6 +104,10 @@ Remaining phases:
   its internals with `fetch` and keeps `subscribe` / `snapshot` /
   `reportFault` identical.
 - `faults.js` — fault rules, shared by the UI and the data source.
+- `status.js` — what a machine is *displayed* as. `displayState` ranks
+  out-of-order over no-signal over the sensed state, and everything that
+  asks "is this free" goes through it so the never-claim-free-without-
+  evidence rule can't be forgotten at a call site.
 
 Time in the app comes from the snapshot (`snapshot.at`), never from
 `Date.now()` in a component. The simulator runs a fast virtual clock, and

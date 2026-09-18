@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
-import { isOutOfOrder, liveReports } from "./faults";
+import { liveReports } from "./faults";
+import { displayState, isStale, countFree, countUnknown } from "./status";
 import { subscribe, reportFault, snapshot as currentSnapshot } from "./sensors";
 import "./TowleLaundry.css";
 
@@ -30,13 +31,13 @@ const STATES = {
   running: { label: "Running",      color: "#de7f16" },
   stopped: { label: "Stopped",      color: "#6558e0" },
   broken:  { label: "Out of order", color: "#9aa7b2" },
+  unknown: { label: "No signal",    color: "#b4c0c9" },
 };
 
 function Tile({ machine, t, onOpen }) {
-  const faulted = isOutOfOrder(machine, t);
-  const { label, color } = faulted ? STATES.broken : STATES[machine.state];
-  const showTime =
-    !faulted && (machine.state === "running" || machine.state === "stopped");
+  const key = displayState(machine, t);
+  const { label, color } = STATES[key];
+  const showTime = key === "running" || key === "stopped";
 
   return (
     <button
@@ -45,7 +46,9 @@ function Tile({ machine, t, onOpen }) {
       onClick={() => onOpen(machine.id)}
     >
       <span className="tile-id">{machine.id}</span>
-      <span className="tile-dot" />
+      {/* Hollow dot for "no signal": filled means we know, outline means we
+          don't. The shape carries the distinction, not just the colour. */}
+      <span className={key === "unknown" ? "tile-dot tile-dot--hollow" : "tile-dot"} />
       <span className="tile-label">{label}</span>
       <span className="tile-time">
         {showTime ? elapsed(t - machine.since) : ""}
@@ -63,23 +66,51 @@ function Row({ label, value }) {
   );
 }
 
+function Summary({ washers, dryers, machines, t }) {
+  const unknown = countUnknown(machines, t);
+
+  return (
+    <div className="summary-block">
+      <div className="summary">
+        <div className="summary-item">
+          <span className="summary-count">{countFree(washers, t)}</span>
+          <span className="summary-label">washers free</span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-count">{countFree(dryers, t)}</span>
+          <span className="summary-label">dryers free</span>
+        </div>
+      </div>
+
+      {unknown > 0 && (
+        <p className="summary-note">
+          {unknown === 1
+            ? "1 machine isn't reporting, so it isn't counted either way."
+            : `${unknown} machines aren't reporting, so they aren't counted either way.`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Sheet({ machine, t, me, onClose, onReport }) {
   if (!machine) return null;
 
-  const faulted = isOutOfOrder(machine, t);
-  const { label, color } = faulted ? STATES.broken : STATES[machine.state];
+  const key = displayState(machine, t);
+  const { label, color } = STATES[key];
   const kind = machine.kind === "washer" ? "Washer" : "Dryer";
   const tier = machine.tier === "top" ? "upper" : "lower";
 
   const live = liveReports(machine, t);
   const reporters = new Set(live.map((r) => r.by)).size;
   const mine = live.some((r) => r.by === me);
+  const stale = isStale(machine, t);
 
   return (
     <div className="scrim" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head" style={{ "--state-color": color }}>
-          <span className="sheet-dot" />
+          <span className={key === "unknown" ? "sheet-dot sheet-dot--hollow" : "sheet-dot"} />
           <div>
             <p className="sheet-title">
               {kind} {machine.id.slice(1)}
@@ -89,7 +120,15 @@ function Sheet({ machine, t, me, onClose, onReport }) {
           </div>
         </div>
 
-        {machine.state === "stopped" && (
+        {key === "unknown" && (
+          <p className="sheet-caveat">
+            This machine's sensor hasn't reported in{" "}
+            {elapsed(t - machine.lastSeen)}. It could be free, running, or
+            broken — there's no way to tell from here.
+          </p>
+        )}
+
+        {key === "stopped" && (
           <p className="sheet-caveat">
             The cycle ended {elapsed(t - machine.since)} ago. The sensor can't
             tell whether it's been emptied.
@@ -97,15 +136,24 @@ function Sheet({ machine, t, me, onClose, onReport }) {
         )}
 
         <div className="sheet-rows">
-          {machine.state === "running" && (
+          {key === "running" && (
             <Row label="Running for" value={elapsed(t - machine.since)} />
           )}
-          {machine.state === "stopped" && (
+          {key === "stopped" && (
             <Row label="Stopped" value={`${elapsed(t - machine.since)} ago`} />
           )}
-          {machine.state === "free" && (
+          {key === "free" && (
             <Row label="Idle for" value={elapsed(t - machine.since)} />
           )}
+          {/* A flagged machine still reports, and what it reports is still
+              worth showing — that's what the auto-clear rule watches. */}
+          {key === "broken" && !stale && (
+            <Row label="Sensor says" value={STATES[machine.state].label} />
+          )}
+          <Row
+            label="Last reported"
+            value={stale ? `${elapsed(t - machine.lastSeen)} ago` : "just now"}
+          />
           {reporters > 0 && (
             <Row
               label="Problem reports"
@@ -116,7 +164,7 @@ function Sheet({ machine, t, me, onClose, onReport }) {
 
         {reporters > 0 && (
           <p className="sheet-caveat">
-            {faulted
+            {key === "broken"
               ? "Marked out of order. This clears if the machine runs a full cycle, or when the reports expire after 7 days."
               : "One report isn't enough. Another resident reporting within 24 hours marks it out of order."}
           </p>
@@ -154,8 +202,9 @@ export default function TowleLaundry() {
   const { at: t, machines } = snapshot;
 
   const washers = machines.filter((m) => m.kind === "washer");
-  const dryersTop = machines.filter((m) => m.tier === "top");
-  const dryersBottom = machines.filter((m) => m.tier === "bottom");
+  const dryers = machines.filter((m) => m.kind === "dryer");
+  const dryersTop = dryers.filter((m) => m.tier === "top");
+  const dryersBottom = dryers.filter((m) => m.tier === "bottom");
 
   const clock = new Date(t).toLocaleTimeString([], {
     hour: "numeric",
@@ -172,6 +221,8 @@ export default function TowleLaundry() {
         <h1>Laundry</h1>
         <p className="updated">Updated {clock}</p>
       </header>
+
+      <Summary washers={washers} dryers={dryers} machines={machines} t={t} />
 
       <section>
         <h2>Washers</h2>

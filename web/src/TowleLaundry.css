@@ -38,6 +38,46 @@ h2 {
   color: #5f7183;
 }
 
+/* Summary */
+
+.summary-block {
+  margin-bottom: 22px;
+}
+
+.summary {
+  display: flex;
+  gap: 8px;
+}
+
+.summary-item {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #d6e0e7;
+  border-radius: 10px;
+  padding: 11px 13px 12px;
+}
+
+.summary-count {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: #5f7183;
+}
+
+.summary-note {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #5f7183;
+}
+
 /* Room layout */
 
 .washer-row {
@@ -98,6 +138,12 @@ h2 {
   background: var(--state-color);
 }
 
+/* Hollow means "we don't know", filled means "we do". The ring keeps the
+   distinction legible without relying on two similar greys. */
+.tile-dot--hollow {
+  background: transparent;
+}
+
 .tile-label {
   font-size: 10px;
   font-weight: 650;
@@ -145,6 +191,12 @@ h2 {
   border-radius: 50%;
   background: var(--state-color);
   flex-shrink: 0;
+}
+
+.sheet-dot--hollow {
+  box-sizing: border-box;
+  background: transparent;
+  border: 4px solid var(--state-color);
 }
 
 .sheet-title {
